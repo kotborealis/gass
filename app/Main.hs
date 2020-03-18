@@ -1,23 +1,39 @@
 module Main where
 
-import Lib
+import GasSimulation
 import System.Random
 import Control.Monad
 import Graphics.Gloss
+import Graphics.Gloss.Data.ViewPort
 
 window :: Display
 window = InWindow "Gass" (800, 600) (200, 200)
 
 renderAtom :: Atom -> Picture
-renderAtom atom = translate x y $ circle 10
-  where
-    (Point x y) = position atom
+renderAtom atom =
+  let (V2 x y) = position atom
+      body = translate x y $ circle 10
+      (V2 vx vy) = speed atom
+      vectorSpeed = color aquamarine $ translate x y $ line [(0, 0), (vx, vy)]
+  in pictures [ body, vectorSpeed ]
+
 
 render :: World -> Picture
-render (World atoms _ _) = pictures (map renderAtom atoms)
+render (World atoms) = pictures (map renderAtom atoms)
 
 main :: IO ()
 main = do
-    atoms <- replicateM 100 $ getStdRandom $ randomR (Atom (Point (-400) (-300)) (Point (-10) (-10)), Atom (Point 400 300) (Point 10 10))
-    let world = World atoms 800 600
-    display window white (render world)
+--     let loAtom = Atom (V2 (-400) (-300)) (V2 (-10) (-10))
+--     let hiAtom = Atom (V2 400 300) (V2 10 10)
+--     atoms <- replicateM 200 $ getStdRandom $ randomR (loAtom, hiAtom)
+    let loAtom = Atom (V2 0 0) (V2 80 0)
+    let hiAtom = Atom (V2 120 0) (V2 0 0)
+    let atoms = [loAtom, hiAtom]
+    let world = World atoms
+    simulate
+        window
+        white
+        1
+        world
+        render
+        (\_ -> updateWorld)
