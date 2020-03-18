@@ -2,40 +2,41 @@ module Lib
     ( Point(..),
       Atom(..),
       World(..),
-      initialWorld,
     ) where
 
-import RandomUtils
+import System.Random
 
 data Point = Point Float Float deriving (Show, Eq)
+
+instance Random Point where
+    randomR (Point lx ly, Point hx hy) g =
+        let (x, g1) = randomR (lx, hx) g
+            (y, g2) = randomR (ly, hy) g1
+        in (Point x y, g2)
+
+    random g =
+        let (x, g1) = random g
+            (y, g2) = random g1
+        in (Point x y, g2)
 
 data Atom = Atom
   { position :: Point
   , speed    :: Point
   } deriving (Show, Eq)
 
+instance Random Atom where
+    randomR (lo, hi) g =
+        let (position', g1) = randomR (position lo, position hi) g
+            (speed',    g2) = randomR (speed lo, speed hi) g1
+        in (Atom position' speed', g2)
+
+    random g =
+        let (position', g1) = random g
+            (speed',    g2) = random g1
+        in (Atom position' speed', g2)
+
 data World = World
   { atoms  :: [Atom]
-  , width  :: Int
-  , height :: Int
+  , width  :: Float
+  , height :: Float
   } deriving (Show)
-
-normalize :: (Float, Float) -> (Float, Float) -> (Float, Float)
-normalize (xr, yr) (xd, yd) = ((xd/xr), (yd/yr))
-
-randAtoms :: (Float, Float) -> [Atom]
-randAtoms range = map (\(position, speed) ->
-      Atom { position = uncurry Point $ position, speed = uncurry Point $ normalize (10, 10) speed}
-    ) atomsData
-  where positions = rndPairsRs range rndGen
-        speeds    = rndPairsRs range rndGen
-        atomsData = zip positions speeds
-
-initialWorld :: Int -> World
-initialWorld entities =
-    World
-    {
-      atoms  = take entities $ randAtoms (-200, 200)
-    , width  = 100
-    , height = 100
-    }

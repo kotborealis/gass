@@ -1,7 +1,8 @@
 module Main where
 
 import Lib
-
+import System.Random
+import Control.Monad
 import Graphics.Gloss
 
 window :: Display
@@ -12,8 +13,11 @@ renderAtom atom = translate x y $ circle 10
   where
     (Point x y) = position atom
 
-render :: Picture
-render = pictures (map renderAtom (atoms $ initialWorld 100))
+render :: World -> Picture
+render (World atoms _ _) = pictures (map renderAtom atoms)
 
 main :: IO ()
-main = display window white render
+main = do
+    atoms <- replicateM 100 $ getStdRandom $ randomR (Atom (Point (-400) (-300)) (Point (-10) (-10)), Atom (Point 400 300) (Point 10 10))
+    let world = World atoms 800 600
+    display window white (render world)
