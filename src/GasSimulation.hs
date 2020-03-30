@@ -13,6 +13,7 @@ import           Linear.V2
 import           Linear.Vector
 import           Data.List
 import           Data.Maybe
+import           Debug.Trace
 
 -- Returns a list of 2-combinations without repetition.
 pairs xs = [ (a, b) | (a : as) <- init . tails $ xs, b <- as ]
@@ -65,12 +66,12 @@ magnitude = distance Linear.zero
 
 collideAtoms :: Float -> Atom -> Atom -> Maybe Collision
 collideAtoms delta lha rha
-    | magnitude move < dist               = Nothing
-    | d <= 0                              = Nothing
-    | f >= sumRadii ** 2                  = Nothing
-    | t < 0                               = Nothing
+    | magnitude move < dist = Nothing
+    | d <= 0 = Nothing
+    | f >= sumRadii ** 2 = Nothing
+    | t < 0 = Nothing
     | magnitude move < distUntilCollision = Nothing
-    | otherwise = Just (Collision (lha, rha) resolution time)
+    | otherwise = Just collision
 
   where
     move               = (atomVelocity lha - atomVelocity rha) ^* delta
@@ -83,7 +84,8 @@ collideAtoms delta lha rha
     t                  = sumRadii ** 2 - f
     distUntilCollision = d - sqrt t
     resolution         = moveNormalized ^* distUntilCollision
-    time               = delta * magnitude (move / resolution)
+    time               = delta * (magnitude resolution / magnitude move)
+    collision          = Collision (lha, rha) resolution time
 
 
 calculateCollisions :: Float -> [Atom] -> [Collision]
@@ -119,8 +121,16 @@ runPhysics delta atoms | null collisions = integrateAtoms delta atoms
             ++ resolveCollision tFirst' firstCollision
 
 resolveCollision :: Float -> Collision -> [Atom]
-resolveCollision delta collision = [a, b]
+resolveCollision delta collision = [
+        a {atomVelocity = negate (atomVelocity a)}, 
+        b {atomVelocity = negate (atomVelocity b)}
+    ]
     where (a, b) = collisionAtoms collision
 
 updateWorld :: Float -> World -> World
-updateWorld delta world = world { atoms = runPhysics delta (atoms world) }
+updateWorld delta world = world
+    { atoms = runPhysics
+                  (Debug.Trace.trace ("upate world delta: " ++ show delta) delta
+                  )
+                  (atoms world)
+    }
