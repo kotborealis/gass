@@ -65,7 +65,7 @@ magnitude = distance Linear.zero
 
 collideAtoms :: Float -> Atom -> Atom -> Maybe Collision
 collideAtoms delta lha rha
-    | magnitude move < dist - sumRadii    = Nothing
+    | magnitude move < dist               = Nothing
     | d <= 0                              = Nothing
     | f >= sumRadii ** 2                  = Nothing
     | t < 0                               = Nothing
@@ -74,12 +74,12 @@ collideAtoms delta lha rha
 
   where
     move               = (atomVelocity lha - atomVelocity rha) ^* delta
-    dist               = distance (atomPosition lha) (atomPosition rha)
+    dist = distance (atomPosition lha) (atomPosition rha) - sumRadii
     sumRadii           = atomRadius * 2
     moveNormalized     = normalize move
     center             = atomPosition rha - atomPosition lha
     d                  = dot moveNormalized center
-    f                  = magnitude center ** 2 - d ** 2
+    f                  = (magnitude center) ** 2 - d ** 2
     t                  = sumRadii ** 2 - f
     distUntilCollision = d - sqrt t
     resolution         = moveNormalized ^* distUntilCollision
