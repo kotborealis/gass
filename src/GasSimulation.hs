@@ -122,10 +122,20 @@ runPhysics delta atoms | null collisions = integrateAtoms delta atoms
 
 resolveCollision :: Float -> Collision -> [Atom]
 resolveCollision delta collision = [
-        a {atomVelocity = negate (atomVelocity a)}, 
-        b {atomVelocity = negate (atomVelocity b)}
+        a {atomVelocity = v1'}, 
+        b {atomVelocity = v2'}
     ]
     where (a, b) = collisionAtoms collision
+          v1 = atomVelocity a
+          v2 = atomVelocity b
+          n = normalize (atomPosition a - atomPosition b)
+          a1 = dot v1 n
+          a2 = dot v2 n
+          p = a1 - a2
+          v1' = v1 - p *^ n
+          v2' = v2 + p *^ n
+          
+        
 
 updateWorld :: Float -> World -> World
 updateWorld delta world = world
