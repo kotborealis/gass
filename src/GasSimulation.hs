@@ -65,13 +65,12 @@ magnitude :: V2 Float -> Float
 magnitude = distance Linear.zero
 
 collideAtoms :: Float -> Atom -> Atom -> Maybe Collision
-collideAtoms delta lha rha
-    | magnitude move < dist = Nothing
-    | d <= 0 = Nothing
-    | f >= sumRadii ** 2 = Nothing
-    | t < 0 = Nothing
-    | magnitude move < distUntilCollision = Nothing
-    | otherwise = Just collision
+collideAtoms delta lha rha | magnitude move < dist               = Nothing
+                           | d <= 0                              = Nothing
+                           | f >= sumRadii ** 2                  = Nothing
+                           | t < 0                               = Nothing
+                           | magnitude move < distUntilCollision = Nothing
+                           | otherwise = Just collision
 
   where
     move               = (atomVelocity lha - atomVelocity rha) ^* delta
@@ -121,26 +120,20 @@ runPhysics delta atoms | null collisions = integrateAtoms delta atoms
             ++ resolveCollision tFirst' firstCollision
 
 resolveCollision :: Float -> Collision -> [Atom]
-resolveCollision delta collision = [
-        a {atomVelocity = v1'}, 
-        b {atomVelocity = v2'}
-    ]
-    where (a, b) = collisionAtoms collision
-          v1 = atomVelocity a
-          v2 = atomVelocity b
-          n = normalize (atomPosition a - atomPosition b)
-          a1 = dot v1 n
-          a2 = dot v2 n
-          p = a1 - a2
-          v1' = v1 - p *^ n
-          v2' = v2 + p *^ n
-          
-        
+resolveCollision delta collision =
+    [a { atomVelocity = v1' }, b { atomVelocity = v2' }]
+  where
+    (a, b) = collisionAtoms collision
+    v1     = atomVelocity a
+    v2     = atomVelocity b
+    n      = normalize (atomPosition a - atomPosition b)
+    a1     = dot v1 n
+    a2     = dot v2 n
+    p      = a1 - a2
+    v1'    = v1 - p *^ n
+    v2'    = v2 + p *^ n
+
+
 
 updateWorld :: Float -> World -> World
-updateWorld delta world = world
-    { atoms = runPhysics
-                  (Debug.Trace.trace ("upate world delta: " ++ show delta) delta
-                  )
-                  (atoms world)
-    }
+updateWorld delta world = world { atoms = runPhysics delta (atoms world) }
