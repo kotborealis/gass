@@ -120,18 +120,17 @@ runPhysics delta atoms | null collisions = integrateAtoms delta atoms
     collisions        = calculateCollisions delta atoms
     firstCollision    = minimum collisions
     tFirst            = firstCollision ^. collisionTime
-    tFirst'           = tFirst - 1.0e-3
-    delta'            = delta - tFirst'
+    delta'            = delta - tFirst
     nonCollidingAtoms = atoms \\ collisionAtoms_ firstCollision
-    atoms' =
-        integrateAtoms tFirst' nonCollidingAtoms
-            ++ resolveCollision tFirst' firstCollision
+    atoms'            = integrateAtoms tFirst nonCollidingAtoms
+        ++ resolveCollision firstCollision
 
-resolveCollision :: Float -> Collision -> [Atom]
-resolveCollision delta collision
+resolveCollision :: Collision -> [Atom]
+resolveCollision collision
     | separatingVelocity > 0 = [a', b']
     | otherwise = [a' & atomVelocity .~ v1', b' & atomVelocity .~ v2']
   where
+    delta              = collision ^. collisionTime
     (a, b)             = collision ^. collisionAtoms
     a'                 = integrateAtom delta a
     b'                 = integrateAtom delta b
