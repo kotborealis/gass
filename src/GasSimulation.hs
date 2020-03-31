@@ -106,13 +106,9 @@ integrateAtoms :: Float -> [Atom] -> [Atom]
 integrateAtoms delta = map (integrateAtom delta)
 
 integrateAtom :: Float -> Atom -> Atom
-integrateAtom 0     atom = atom
-integrateAtom delta atom = atom & atomPosition .~ atomPosition''
-  where
-    atomPosition'  = atom ^. atomPosition
-    atomVelocity'  = atom ^. atomVelocity
-    -- TODO lens
-    atomPosition'' = atomPosition' + (atomVelocity' ^* delta)
+integrateAtom 0 atom = atom
+integrateAtom delta atom =
+    atom & atomPosition %~ (+ atom ^. atomVelocity ^* delta)
 
 runPhysics :: Float -> [Atom] -> [Atom]
 runPhysics 0 atoms = atoms
@@ -132,7 +128,7 @@ runPhysics delta atoms | null collisions = integrateAtoms delta atoms
             ++ resolveCollision tFirst' firstCollision
 
 resolveCollision :: Float -> Collision -> [Atom]
-resolveCollision delta collision 
+resolveCollision delta collision
     | separatingVelocity > 0 = [a', b']
     | otherwise = [a' & atomVelocity .~ v1', b' & atomVelocity .~ v2']
   where
