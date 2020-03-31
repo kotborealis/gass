@@ -5,6 +5,7 @@ import           System.Random
 import           Control.Monad
 import           Graphics.Gloss
 import           Graphics.Gloss.Data.ViewPort
+import           Control.Lens
 
 window :: Display
 window = InWindow "Gass" (800, 600) (200, 200)
@@ -12,9 +13,9 @@ window = InWindow "Gass" (800, 600) (200, 200)
 renderAtom :: Atom -> Picture
 renderAtom atom =
   let
-    (V2 x y)    = atomPosition atom
+    (V2 x y)    = atom ^. atomPosition
     body        = translate x y $ circle 10
-    (V2 vx vy)  = atomVelocity atom
+    (V2 vx vy)  = atom ^. atomVelocity
     vectorSpeed = color aquamarine $ translate x y $ line [(0, 0), (vx, vy)]
   in
     pictures [body, vectorSpeed]
@@ -30,5 +31,5 @@ main = do
   atoms <- replicateM 200 $ getStdRandom $ randomR (loAtom, hiAtom)
   -- let loAtom = Atom (V2 0 0) (V2 50 5)
   -- let hiAtom = Atom (V2 120 0) (V2 (-0) 0)
-  let world  = World atoms
+  let world = World atoms
   simulate window white 60 world render (const updateWorld)

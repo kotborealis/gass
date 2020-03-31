@@ -24,6 +24,7 @@ dependencies:
 - gloss >= 1.13.1.1 && < 2
 - random
 - linear
+- lens
 
 library:
   source-dirs: src

@@ -1,6 +1,10 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module GasSimulation
     ( V2(..)
     , Atom(..)
+    , atomVelocity
+    , atomPosition
     , World(..)
     , updateWorld
     )
@@ -14,6 +18,7 @@ import           Linear.Vector
 import           Data.List
 import           Data.Maybe
 import           Debug.Trace
+import           Control.Lens
 
 -- Returns a list of 2-combinations without repetition.
 pairs xs = [ (a, b) | (a : as) <- init . tails $ xs, b <- as ]
@@ -30,14 +35,18 @@ instance Random a => Random (V2 a) where
 atomRadius = 10
 
 data Atom = Atom{
-    atomPosition  :: V2 Float,
-    atomVelocity     :: V2 Float
+    _atomPosition  :: V2 Float,
+    _atomVelocity  :: V2 Float
   } deriving (Show, Eq)
+
+makeLenses ''Atom
 
 instance Random Atom where
     randomR (lo, hi) g =
-        let (atomPosition', g1) = randomR (atomPosition lo, atomPosition hi) g
-            (atomVelocity', g2) = randomR (atomVelocity lo, atomVelocity hi) g1
+        let (atomPosition', g1) =
+                    randomR (lo ^. atomPosition, hi ^. atomPosition) g
+            (atomVelocity', g2) =
+                    randomR (lo ^. atomVelocity, hi ^. atomVelocity) g1
         in  (Atom atomPosition' atomVelocity', g2)
 
     random g =
@@ -46,16 +55,18 @@ instance Random Atom where
         in  (Atom atomPosition' atomVelocity', g2)
 
 data Collision = Collision {
-    collisionAtoms :: (Atom, Atom),
-    collisionResolution :: V2 Float,
-    collisionTime :: Float
+    _collisionAtoms :: (Atom, Atom),
+    _collisionResolution :: V2 Float,
+    _collisionTime :: Float
 } deriving (Eq, Show)
 
+makeLenses ''Collision
+
 instance Ord Collision where
-    a <= b = collisionTime a <= collisionTime b
+    a <= b = a ^. collisionTime <= b ^. collisionTime
 
 collisionAtoms_ :: Collision -> [Atom]
-collisionAtoms_ collision = [a, b] where (a, b) = collisionAtoms collision
+collisionAtoms_ collision = [a, b] where (a, b) = collision ^. collisionAtoms
 
 data World = World {
     atoms  :: [Atom]
@@ -73,11 +84,11 @@ collideAtoms delta lha rha | magnitude move < dist               = Nothing
                            | otherwise = Just collision
 
   where
-    move               = (atomVelocity lha - atomVelocity rha) ^* delta
-    dist = distance (atomPosition lha) (atomPosition rha) - sumRadii
+    move               = (lha ^. atomVelocity - rha ^. atomVelocity) ^* delta
+    dist = distance (lha ^. atomPosition) (rha ^. atomPosition) - sumRadii
     sumRadii           = atomRadius * 2
     moveNormalized     = normalize move
-    center             = atomPosition rha - atomPosition lha
+    center             = rha ^. atomPosition - lha ^. atomPosition
     d                  = dot moveNormalized center
     f                  = (magnitude center) ** 2 - d ** 2
     t                  = sumRadii ** 2 - f
@@ -96,10 +107,11 @@ integrateAtoms delta = map (integrateAtom delta)
 
 integrateAtom :: Float -> Atom -> Atom
 integrateAtom 0     atom = atom
-integrateAtom delta atom = atom { atomPosition = atomPosition'' }
+integrateAtom delta atom = atom & atomPosition .~ atomPosition''
   where
-    atomPosition'  = atomPosition atom
-    atomVelocity'  = atomVelocity atom
+    atomPosition'  = atom ^. atomPosition
+    atomVelocity'  = atom ^. atomVelocity
+    -- TODO lens
     atomPosition'' = atomPosition' + (atomVelocity' ^* delta)
 
 runPhysics :: Float -> [Atom] -> [Atom]
@@ -111,7 +123,7 @@ runPhysics delta atoms | null collisions = integrateAtoms delta atoms
   where
     collisions        = calculateCollisions delta atoms
     firstCollision    = minimum collisions
-    tFirst            = collisionTime firstCollision
+    tFirst            = firstCollision ^. collisionTime
     tFirst'           = tFirst - 1.0e-3
     delta'            = delta - tFirst'
     nonCollidingAtoms = atoms \\ collisionAtoms_ firstCollision
@@ -121,12 +133,12 @@ runPhysics delta atoms | null collisions = integrateAtoms delta atoms
 
 resolveCollision :: Float -> Collision -> [Atom]
 resolveCollision delta collision =
-    [a { atomVelocity = v1' }, b { atomVelocity = v2' }]
+    [a & atomVelocity .~ v1', b & atomVelocity .~ v2']
   where
-    (a, b) = collisionAtoms collision
-    v1     = atomVelocity a
-    v2     = atomVelocity b
-    n      = normalize (atomPosition a - atomPosition b)
+    (a, b) = collision ^. collisionAtoms 
+    v1     = a ^. atomVelocity 
+    v2     = b ^. atomVelocity
+    n      = normalize (a ^. atomPosition - b ^. atomPosition)
     a1     = dot v1 n
     a2     = dot v2 n
     p      = a1 - a2
