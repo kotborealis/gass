@@ -28,8 +28,8 @@ main :: IO ()
 main = do
   let loAtom = Atom (V2 (-400) (-300)) (V2 (-50) (-50))
   let hiAtom = Atom (V2 400 300) (V2 50 50)
-  atoms <- replicateM 500 $ getStdRandom $ randomR (loAtom, hiAtom)
+  atoms <- replicateM 100 $ getStdRandom $ randomR (loAtom, hiAtom)
   -- let loAtom = Atom (V2 0 0) (V2 50 5)
   -- let hiAtom = Atom (V2 120 0) (V2 (-0) 0)
   let world = World atoms
-  simulate window white 60 world render (const updateWorld)
+  simulate window white 30 world render (const updateWorld)

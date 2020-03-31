@@ -56,7 +56,6 @@ instance Random Atom where
 
 data Collision = Collision {
     _collisionAtoms :: (Atom, Atom),
-    _collisionResolution :: V2 Float,
     _collisionTime :: Float,
     _collisionNormal :: V2 Float
 } deriving (Eq, Show)
@@ -92,12 +91,11 @@ collideAtoms delta lha rha | magnitude move < dist               = Nothing
     center             = rha ^. atomPosition - lha ^. atomPosition
     normal             = normalize center
     d                  = dot moveNormalized center
-    f                  = (magnitude center) ** 2 - d ** 2
+    f                  = magnitude center ** 2 - d ** 2
     t                  = sumRadii ** 2 - f
     distUntilCollision = d - sqrt t
-    resolution         = moveNormalized ^* distUntilCollision
-    time               = delta * (magnitude resolution / magnitude move)
-    collision          = Collision (lha, rha) resolution time normal
+    time               = delta * (distUntilCollision / magnitude move)
+    collision          = Collision (lha, rha) time normal
 
 
 calculateCollisions :: Float -> [Atom] -> [Collision]
@@ -139,10 +137,10 @@ resolveCollision delta collision
     | otherwise = [a' & atomVelocity .~ v1', b' & atomVelocity .~ v2']
   where
     (a, b)             = collision ^. collisionAtoms
-    v1                 = a ^. atomVelocity
-    v2                 = b ^. atomVelocity
     a'                 = integrateAtom delta a
     b'                 = integrateAtom delta b
+    v1                 = a ^. atomVelocity
+    v2                 = b ^. atomVelocity
     n                  = collision ^. collisionNormal
     separatingVelocity = (-1) * dot (v1 - v2) n
     a1                 = dot v1 n
@@ -150,8 +148,6 @@ resolveCollision delta collision
     p                  = a1 - a2
     v1'                = v1 - p *^ n
     v2'                = v2 + p *^ n
-
-
 
 updateWorld :: Float -> World -> World
 updateWorld delta world = world { atoms = runPhysics delta (atoms world) }
