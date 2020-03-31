@@ -26,9 +26,9 @@ render (World atoms) = pictures (map renderAtom atoms)
 
 main :: IO ()
 main = do
-  let loAtom = Atom (V2 (-400) (-300)) (V2 (-100) (-100))
-  let hiAtom = Atom (V2 400 300) (V2 100 100)
-  atoms <- replicateM 200 $ getStdRandom $ randomR (loAtom, hiAtom)
+  let loAtom = Atom (V2 (-400) (-300)) (V2 (-50) (-50))
+  let hiAtom = Atom (V2 400 300) (V2 50 50)
+  atoms <- replicateM 500 $ getStdRandom $ randomR (loAtom, hiAtom)
   -- let loAtom = Atom (V2 0 0) (V2 50 5)
   -- let hiAtom = Atom (V2 120 0) (V2 (-0) 0)
   let world = World atoms

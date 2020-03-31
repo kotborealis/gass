@@ -57,7 +57,8 @@ instance Random Atom where
 data Collision = Collision {
     _collisionAtoms :: (Atom, Atom),
     _collisionResolution :: V2 Float,
-    _collisionTime :: Float
+    _collisionTime :: Float,
+    _collisionNormal :: V2 Float
 } deriving (Eq, Show)
 
 makeLenses ''Collision
@@ -89,13 +90,14 @@ collideAtoms delta lha rha | magnitude move < dist               = Nothing
     sumRadii           = atomRadius * 2
     moveNormalized     = normalize move
     center             = rha ^. atomPosition - lha ^. atomPosition
+    normal             = normalize center
     d                  = dot moveNormalized center
     f                  = (magnitude center) ** 2 - d ** 2
     t                  = sumRadii ** 2 - f
     distUntilCollision = d - sqrt t
     resolution         = moveNormalized ^* distUntilCollision
     time               = delta * (magnitude resolution / magnitude move)
-    collision          = Collision (lha, rha) resolution time
+    collision          = Collision (lha, rha) resolution time normal
 
 
 calculateCollisions :: Float -> [Atom] -> [Collision]
@@ -132,18 +134,22 @@ runPhysics delta atoms | null collisions = integrateAtoms delta atoms
             ++ resolveCollision tFirst' firstCollision
 
 resolveCollision :: Float -> Collision -> [Atom]
-resolveCollision delta collision =
-    [a & atomVelocity .~ v1', b & atomVelocity .~ v2']
+resolveCollision delta collision 
+    | separatingVelocity > 0 = [a', b']
+    | otherwise = [a' & atomVelocity .~ v1', b' & atomVelocity .~ v2']
   where
-    (a, b) = collision ^. collisionAtoms 
-    v1     = a ^. atomVelocity 
-    v2     = b ^. atomVelocity
-    n      = normalize (a ^. atomPosition - b ^. atomPosition)
-    a1     = dot v1 n
-    a2     = dot v2 n
-    p      = a1 - a2
-    v1'    = v1 - p *^ n
-    v2'    = v2 + p *^ n
+    (a, b)             = collision ^. collisionAtoms
+    v1                 = a ^. atomVelocity
+    v2                 = b ^. atomVelocity
+    a'                 = integrateAtom delta a
+    b'                 = integrateAtom delta b
+    n                  = collision ^. collisionNormal
+    separatingVelocity = (-1) * dot (v1 - v2) n
+    a1                 = dot v1 n
+    a2                 = dot v2 n
+    p                  = a1 - a2
+    v1'                = v1 - p *^ n
+    v2'                = v2 + p *^ n
 
 
 
