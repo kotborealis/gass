@@ -6,6 +6,8 @@ module GasSimulation
     , atomVelocity
     , atomPosition
     , World(..)
+    , worldAtoms
+    , worldBounds
     , updateWorld
     )
 where
@@ -69,8 +71,11 @@ collisionAtoms_ :: Collision -> [Atom]
 collisionAtoms_ collision = [a, b] where (a, b) = collision ^. collisionAtoms
 
 data World = World {
-    atoms  :: [Atom]
+    _worldAtoms  :: [Atom],
+    _worldBounds :: (V2 Float, V2 Float)
   } deriving (Eq, Show)
+
+makeLenses ''World
 
 magnitude :: V2 Float -> Float
 magnitude = distance Linear.zero
@@ -145,4 +150,4 @@ resolveCollision collision
     v2'                = v2 + p *^ n
 
 updateWorld :: Float -> World -> World
-updateWorld delta world = world { atoms = runPhysics delta (atoms world) }
+updateWorld delta world = world & worldAtoms %~ runPhysics delta 
