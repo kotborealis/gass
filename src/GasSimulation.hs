@@ -7,8 +7,9 @@ module GasSimulation
     , atomPosition
     , World(..)
     , worldAtoms
-    , worldBounds
+    , worldWalls
     , updateWorld
+    , Wall(..)
     )
 where
 
@@ -39,9 +40,14 @@ atomRadius = 10
 data Atom = Atom{
     _atomPosition  :: V2 Float,
     _atomVelocity  :: V2 Float
-  } deriving (Show, Eq)
+  }
+  deriving (Show, Eq)
 
 makeLenses ''Atom
+
+data Wall = Wall (V2 Float, V2 Float) deriving (Show, Eq)
+
+data PhysicsEntity = PhysicsAtom Atom | PhysicsWall Wall deriving (Show, Eq)
 
 instance Random Atom where
     randomR (lo, hi) g =
@@ -57,7 +63,7 @@ instance Random Atom where
         in  (Atom atomPosition' atomVelocity', g2)
 
 data Collision = Collision {
-    _collisionAtoms :: (Atom, Atom),
+    _collisionEntities :: (PhysicsEntity, PhysicsEntity),
     _collisionTime :: Float,
     _collisionNormal :: V2 Float
 } deriving (Eq, Show)
@@ -67,12 +73,13 @@ makeLenses ''Collision
 instance Ord Collision where
     a <= b = a ^. collisionTime <= b ^. collisionTime
 
-collisionAtoms_ :: Collision -> [Atom]
-collisionAtoms_ collision = [a, b] where (a, b) = collision ^. collisionAtoms
+collisionAtoms :: Collision -> [Atom]
+collisionAtoms (Collision (PhysicsAtom a, PhysicsWall _) _ _) = [a]
+collisionAtoms (Collision (PhysicsAtom a, PhysicsAtom b) _ _) = [a, b]
 
 data World = World {
     _worldAtoms  :: [Atom],
-    _worldBounds :: (V2 Float, V2 Float)
+    _worldWalls :: [Wall]
   } deriving (Eq, Show)
 
 makeLenses ''World
@@ -80,13 +87,15 @@ makeLenses ''World
 magnitude :: V2 Float -> Float
 magnitude = distance Linear.zero
 
-collideAtoms :: Float -> Atom -> Atom -> Maybe Collision
-collideAtoms delta lha rha | magnitude move < dist               = Nothing
-                           | d <= 0                              = Nothing
-                           | f >= sumRadii ** 2                  = Nothing
-                           | t < 0                               = Nothing
-                           | magnitude move < distUntilCollision = Nothing
-                           | otherwise = Just collision
+collideEntities :: Float -> PhysicsEntity -> PhysicsEntity -> Maybe Collision
+
+collideEntities delta (PhysicsAtom lha) (PhysicsAtom rha)
+    | magnitude move < dist               = Nothing
+    | d <= 0                              = Nothing
+    | f >= sumRadii ** 2                  = Nothing
+    | t < 0                               = Nothing
+    | magnitude move < distUntilCollision = Nothing
+    | otherwise                           = Just collision
 
   where
     move               = (lha ^. atomVelocity - rha ^. atomVelocity) ^* delta
@@ -100,12 +109,23 @@ collideAtoms delta lha rha | magnitude move < dist               = Nothing
     t                  = sumRadii ** 2 - f
     distUntilCollision = d - sqrt t
     time               = delta * (distUntilCollision / magnitude move)
-    collision          = Collision (lha, rha) time normal
+    collision = Collision (PhysicsAtom lha, PhysicsAtom rha) time normal
+
+collideEntities delta (PhysicsWall w1) (PhysicsWall w2) = Nothing
+
+collideEntities delta w@(PhysicsWall _) a@(PhysicsAtom _) =
+    collideEntities delta a w
+
+collideEntities delta (PhysicsAtom a) pw@(PhysicsWall (Wall (wx, wy)))
+    | otherwise = Nothing
+    where move = a ^. atomVelocity ^* delta
 
 
-calculateCollisions :: Float -> [Atom] -> [Collision]
-calculateCollisions delta atoms =
-    mapMaybe (uncurry (collideAtoms delta)) $ pairs atoms
+
+
+calculateCollisions :: Float -> [PhysicsEntity] -> [Collision]
+calculateCollisions delta entities =
+    mapMaybe (uncurry (collideEntities delta)) $ pairs entities
 
 integrateAtoms :: Float -> [Atom] -> [Atom]
 integrateAtoms delta = map (integrateAtom delta)
@@ -115,28 +135,32 @@ integrateAtom 0 atom = atom
 integrateAtom delta atom =
     atom & atomPosition %~ (+ atom ^. atomVelocity ^* delta)
 
-runPhysics :: Float -> [Atom] -> [Atom]
-runPhysics 0 atoms = atoms
-runPhysics delta atoms | null collisions = integrateAtoms delta atoms
-                       | tFirst > delta  = integrateAtoms delta atoms
-                       | otherwise       = runPhysics delta' atoms'
+runPhysics :: Float -> World -> World
+runPhysics 0 world = world
+runPhysics delta world
+    | null collisions = world & worldAtoms %~ integrateAtoms delta
+    | tFirst > delta  = world & worldAtoms %~ integrateAtoms delta
+    | otherwise       = runPhysics delta' (world & worldAtoms .~ atoms')
 
   where
-    collisions        = calculateCollisions delta atoms
+    atoms      = world ^. worldAtoms
+    walls      = world ^. worldWalls
+    collisions = calculateCollisions
+        delta
+        (map PhysicsAtom atoms ++ map PhysicsWall walls)
     firstCollision    = minimum collisions
     tFirst            = firstCollision ^. collisionTime
     delta'            = delta - tFirst
-    nonCollidingAtoms = atoms \\ collisionAtoms_ firstCollision
+    nonCollidingAtoms = atoms \\ collisionAtoms firstCollision
     atoms'            = integrateAtoms tFirst nonCollidingAtoms
         ++ resolveCollision firstCollision
 
 resolveCollision :: Collision -> [Atom]
-resolveCollision collision
+resolveCollision collision@(Collision (PhysicsAtom a, PhysicsAtom b) _ _)
     | separatingVelocity > 0 = [a', b']
     | otherwise = [a' & atomVelocity .~ v1', b' & atomVelocity .~ v2']
   where
     delta              = collision ^. collisionTime
-    (a, b)             = collision ^. collisionAtoms
     a'                 = integrateAtom delta a
     b'                 = integrateAtom delta b
     v1                 = a ^. atomVelocity
@@ -149,5 +173,19 @@ resolveCollision collision
     v1'                = v1 - p *^ n
     v2'                = v2 + p *^ n
 
+
+resolveCollision collision@(Collision (PhysicsAtom a, PhysicsWall _) _ _)
+    | separatingVelocity > 0 = [a']
+    | otherwise              = [a' & atomVelocity .~ v1']
+  where
+    delta              = collision ^. collisionTime
+    a'                 = integrateAtom delta a
+    v1                 = a ^. atomVelocity
+    n                  = collision ^. collisionNormal
+    separatingVelocity = (-1) * dot v1 n
+    a1                 = dot v1 n
+    p                  = a1
+    v1'                = v1 - p *^ n
+
 updateWorld :: Float -> World -> World
-updateWorld delta world = world & worldAtoms %~ runPhysics delta 
+updateWorld = runPhysics
