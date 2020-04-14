@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+-- {-# OPTIONS_GHC -Wall #-}
 
 module GasSimulation
     ( V2(..)
@@ -111,15 +112,32 @@ collideEntities delta (PhysicsAtom lha) (PhysicsAtom rha)
     time               = delta * (distUntilCollision / magnitude move)
     collision = Collision (PhysicsAtom lha, PhysicsAtom rha) time normal
 
-collideEntities delta (PhysicsWall w1) (PhysicsWall w2) = Nothing
+collideEntities _ (PhysicsWall _) (PhysicsWall _) = Nothing
 
 collideEntities delta w@(PhysicsWall _) a@(PhysicsAtom _) =
     collideEntities delta a w
 
-collideEntities delta (PhysicsAtom a) pw@(PhysicsWall (Wall (wx, wy)))
-    | otherwise = Nothing
-    where move = a ^. atomVelocity ^* delta
-
+collideEntities delta (PhysicsAtom atom) pw@(PhysicsWall (Wall (w1, w2)))
+    | d < 0     = Nothing
+    | otherwise = Just collision
+  where
+    move      = atom ^. atomVelocity ^* delta
+    p1        = w1 - atom ^. atomPosition - move
+    p2        = w2 - atom ^. atomPosition - move
+    k         = p2 - p1
+    a         = (k ^. _1) ** 2 + (k ^. _2) ** 2
+    b         = 2 * (k ^. _1 * p1 ^. _1 + k ^. _2 * p1 ^. _2)
+    c         = (p1 ^. _1) ** 2 + (p1 ^. _2) ** 2 - atomRadius ** 2
+    d         = b ** 2 - 4 * a * c
+    u1        = ((-1) * b + sqrt d) / (2 * a)
+    u2        = ((-1) * b - sqrt d) / (2 * a)
+    u         = (u1 + u2) / 2
+    cp        = w1 + k ^* u
+    center      = cp - atom ^. atomPosition
+    n = normalize center
+    distUntilCollision = magnitude (center - move) - atomRadius
+    time               = delta * (distUntilCollision / magnitude move)
+    collision = Collision (PhysicsAtom atom, pw) time n
 
 
 
@@ -183,9 +201,9 @@ resolveCollision collision@(Collision (PhysicsAtom a, PhysicsWall _) _ _)
     v1                 = a ^. atomVelocity
     n                  = collision ^. collisionNormal
     separatingVelocity = (-1) * dot v1 n
-    a1                 = dot v1 n
-    p                  = a1
-    v1'                = v1 - p *^ n
+    nn = dot n n
+    v1' = v1 - (2 ^* ((-1)*separatingVelocity / nn)) * n
+
 
 updateWorld :: Float -> World -> World
 updateWorld = runPhysics
