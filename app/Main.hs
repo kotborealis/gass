@@ -32,8 +32,8 @@ render world = pictures
 
 main :: IO ()
 main = do
-  let loAtom = Atom (V2 (-400) (-300)) (V2 (-50) (-50))
-  let hiAtom = Atom (V2 400 300) (V2 50 50)
+  let loAtom = Atom (V2 (-400) (-300)) (V2 (-200) (-200))
+  let hiAtom = Atom (V2 400 300) (V2 200 200)
   atoms <- replicateM 100 $ getStdRandom $ randomR (loAtom, hiAtom)
   let walls =
         [ Wall (V2 (-500) (-500), V2 (500) (-500))

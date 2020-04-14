@@ -118,26 +118,30 @@ collideEntities delta w@(PhysicsWall _) a@(PhysicsAtom _) =
     collideEntities delta a w
 
 collideEntities delta (PhysicsAtom atom) pw@(PhysicsWall (Wall (w1, w2)))
-    | d < 0     = Nothing
-    | otherwise = Just collision
+    | d < 0                  = Nothing
+    | dd <= 0                = Nothing
+    | distUntilCollision > 0 = Nothing
+    | otherwise              = Just collision
   where
-    move      = atom ^. atomVelocity ^* delta
-    p1        = w1 - atom ^. atomPosition - move
-    p2        = w2 - atom ^. atomPosition - move
-    k         = p2 - p1
-    a         = (k ^. _1) ** 2 + (k ^. _2) ** 2
-    b         = 2 * (k ^. _1 * p1 ^. _1 + k ^. _2 * p1 ^. _2)
-    c         = (p1 ^. _1) ** 2 + (p1 ^. _2) ** 2 - atomRadius ** 2
-    d         = b ** 2 - 4 * a * c
-    u1        = ((-1) * b + sqrt d) / (2 * a)
-    u2        = ((-1) * b - sqrt d) / (2 * a)
-    u         = (u1 + u2) / 2
-    cp        = w1 + k ^* u
-    center      = cp - atom ^. atomPosition
-    n = normalize center
+    move               = atom ^. atomVelocity ^* delta
+    moveNormalized     = normalize move
+    p1                 = w1 - atom ^. atomPosition - move
+    p2                 = w2 - atom ^. atomPosition - move
+    k                  = p2 - p1
+    a                  = (k ^. _1) ** 2 + (k ^. _2) ** 2
+    b                  = 2 * (k ^. _1 * p1 ^. _1 + k ^. _2 * p1 ^. _2)
+    c                  = (p1 ^. _1) ** 2 + (p1 ^. _2) ** 2 - atomRadius ** 2
+    d                  = b ** 2 - 4 * a * c
+    u1                 = ((-1) * b + sqrt d) / (2 * a)
+    u2                 = ((-1) * b - sqrt d) / (2 * a)
+    u                  = (u1 + u2) / 2
+    cp                 = w1 + k ^* u
+    center             = cp - atom ^. atomPosition
+    dd                 = dot moveNormalized center
+    n                  = normalize center
     distUntilCollision = magnitude (center - move) - atomRadius
     time               = delta * (distUntilCollision / magnitude move)
-    collision = Collision (PhysicsAtom atom, pw) time n
+    collision          = Collision (PhysicsAtom atom, pw) time n
 
 
 
@@ -201,8 +205,8 @@ resolveCollision collision@(Collision (PhysicsAtom a, PhysicsWall _) _ _)
     v1                 = a ^. atomVelocity
     n                  = collision ^. collisionNormal
     separatingVelocity = (-1) * dot v1 n
-    nn = dot n n
-    v1' = v1 - (2 ^* ((-1)*separatingVelocity / nn)) * n
+    nn                 = dot n n
+    v1'                = v1 - (2 ^* ((-1) * separatingVelocity / nn)) * n
 
 
 updateWorld :: Float -> World -> World
