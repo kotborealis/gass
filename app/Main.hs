@@ -8,7 +8,7 @@ import           Graphics.Gloss.Data.ViewPort
 import           Control.Lens
 
 window :: Display
-window = InWindow "Gass" (800, 600) (200, 200)
+window = InWindow "Gass" (1920, 1080) (0, 0)
 
 renderAtom :: Atom -> Picture
 renderAtom atom =
@@ -18,7 +18,7 @@ renderAtom atom =
     (V2 vx vy)  = atom ^. atomVelocity
     vectorSpeed = color aquamarine $ translate x y $ line [(0, 0), (vx, vy)]
   in
-    pictures [body, vectorSpeed]
+    pictures [body]
 
 renderWall :: Wall -> Picture
 renderWall wall = line [(x1, y1), (x2, y2)]
@@ -32,14 +32,14 @@ render world = pictures
 
 main :: IO ()
 main = do
-  let loAtom = Atom (V2 (-400) (-300)) (V2 (-200) (-200))
-  let hiAtom = Atom (V2 400 300) (V2 200 200)
+  let loAtom = Atom (V2 (-200) (-200)) (V2 (-100) (-100))
+  let hiAtom = Atom (V2 200 200) (V2 100 100)
   atoms <- replicateM 100 $ getStdRandom $ randomR (loAtom, hiAtom)
   let walls =
-        [ Wall (V2 (-500) (-500), V2 (500) (-500))
+        [ Wall (V2 (-400) (-400), V2 (500) (-500))
         , Wall (V2 (500) (-500), V2 (400) (400))
         , Wall (V2 (400) (400), V2 (-500) (500))
-        , Wall (V2 (-500) (500), V2 (-500) (-500))
+        , Wall (V2 (-500) (500), V2 (-400) (-400))
         ]
   let world = World atoms walls
   simulate window white 30 world render (const updateWorld)
