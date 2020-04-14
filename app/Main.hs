@@ -37,8 +37,8 @@ main = do
   atoms <- replicateM 100 $ getStdRandom $ randomR (loAtom, hiAtom)
   let walls =
         [ Wall (V2 (-500) (-500), V2 (500) (-500))
-        , Wall (V2 (500) (-500), V2 (500) (500))
-        , Wall (V2 (500) (500), V2 (-500) (500))
+        , Wall (V2 (500) (-500), V2 (400) (400))
+        , Wall (V2 (400) (400), V2 (-500) (500))
         , Wall (V2 (-500) (500), V2 (-500) (-500))
         ]
   let world = World atoms walls
