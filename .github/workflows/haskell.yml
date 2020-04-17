@@ -9,6 +9,8 @@ jobs:
     steps:
     - name: Install OS Packages
       uses: mstksg/get-package@v1
+      with:
+        apt-get: libglu1-mesa-dev freeglut3-dev mesa-common-dev
     - uses: actions/checkout@v1
 
     - name: Setup stack
