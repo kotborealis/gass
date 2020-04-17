@@ -2,7 +2,7 @@
 
 Simple simulation of ideal gas written in Haskell.
 
-[Screenshot](./Screenshot.png)
+![Screenshot](./Screenshot.png)
 
 ## Links
 
