@@ -1,5 +1,7 @@
 # gass
 
+![Haskell Stack Project CI](https://github.com/kotborealis/gass/workflows/Haskell%20Stack%20Project%20CI/badge.svg)
+
 Simple simulation of ideal gas written in Haskell.
 
 ![Screenshot](./Screenshot.png)
